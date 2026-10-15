@@ -9,10 +9,9 @@ if (!isset($_SESSION['id_usuario'])) {
     exit();
 }
 
-// Asignar el ID de sesión a una variable unificada
 $id_usuario = $_SESSION['id_usuario'];
 
-// Obtener datos del usuario logueado
+// Obtener datos del usuario logueado y su foto de perfil (Estructura unificada)
 $sql_user = "
     SELECT 
         u.nombres, 
@@ -26,29 +25,51 @@ $stmt_user = $con->prepare($sql_user);
 $stmt_user->bind_param("i", $id_usuario);
 $stmt_user->execute();
 $res_user = $stmt_user->get_result();
-$datos_sesion = $res_user->fetch_assoc();
 
-$foto_perfil = $datos_sesion['foto_perfil'] ?? '';
-$nombre_usuario_logueado = ($datos_sesion['nombres'] ?? '') . ' ' . ($datos_sesion['apellidos'] ?? '');
+$foto_perfil = '';
+if ($row_user = $res_user->fetch_assoc()) {
+    $nombre_usuario_logueado = trim($row_user['nombres'] . ' ' . $row_user['apellidos']);
+    $foto_perfil = $row_user['foto_perfil'] ?? '';
+} else {
+    session_destroy();
+    header("Location: index.php");
+    exit();
+}
+$stmt_user->close();
 
 $mensaje = "";
 $error = "";
 
 // ==========================================
-// PROCESAR ACCIONES (POST / GET) CON MYSQLI
+// 1. OBTENER USUARIO PARA EDITAR (PRE-EDICIÓN)
+// ==========================================
+$usuarioEdit = null;
+if (isset($_GET['accion']) && $_GET['accion'] === 'pre_editar' && isset($_GET['id'])) {
+    $id_pre = intval($_GET['id']);
+    $stmt_edit = $con->prepare("SELECT * FROM usuarios WHERE id_usuario = ?");
+    $stmt_edit->bind_param("i", $id_pre);
+    $stmt_edit->execute();
+    $resultado_edit = $stmt_edit->get_result();
+    if ($resultado_edit->num_rows > 0) {
+        $usuarioEdit = $resultado_edit->fetch_assoc();
+    }
+}
+
+// ==========================================
+// 2. PROCESAR ACCIONES (POST / GET) CON MYSQLI
 // ==========================================
 
 // --- AGREGAR O EDITAR USUARIO ---
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['accion'])) {
     $accion = $_POST['accion'];
-    $id_edit = $_POST['id_usuario'] ?? null;
+    $id_edit = isset($_POST['id_usuario']) ? intval($_POST['id_usuario']) : null;
     $documento = trim($_POST['documento']);
     $nombres = trim($_POST['nombres']);
     $apellidos = trim($_POST['apellidos']);
     $telefono = trim($_POST['telefono']);
     $correo = trim($_POST['correo']);
     $usuario = trim($_POST['usuario']);
-    $rol = trim($_POST['rol']); // Obtenido directamente del formulario
+    $rol = trim($_POST['rol']);
     $estado = trim($_POST['estado']);
 
     if ($accion === 'agregar') {
@@ -69,8 +90,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['accion'])) {
             $stmt = $con->prepare("UPDATE usuarios SET documento=?, nombres=?, apellidos=?, telefono=?, correo=?, usuario=?, rol=?, estado=? WHERE id_usuario=?");
             $stmt->bind_param("ssssssssi", $documento, $nombres, $apellidos, $telefono, $correo, $usuario, $rol, $estado, $id_edit);
         }
-        if ($stmt->execute()) {
+        if ($stmt && $stmt->execute()) {
             $mensaje = "Usuario actualizado correctamente.";
+            $usuarioEdit = null; 
         } else {
             $error = "Error al actualizar usuario: " . $con->error;
         }
@@ -79,39 +101,37 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['accion'])) {
 
 // --- SUSPENDER / CAMBIAR ESTADO ---
 if (isset($_GET['accion']) && $_GET['accion'] === 'suspender' && isset($_GET['id'])) {
-    $id_target = $_GET['id'];
-    $nuevo_estado = $_GET['estado'] === 'activo' ? 'inactivo' : 'activo';
+    $id_target = intval($_GET['id']);
+    $estado_actual = $_GET['estado'] ?? 'activo';
+    $nuevo_estado = ($estado_actual === 'activo') ? 'inactivo' : 'activo';
+    
     $stmt = $con->prepare("UPDATE usuarios SET estado = ? WHERE id_usuario = ?");
     $stmt->bind_param("si", $nuevo_estado, $id_target);
     if ($stmt->execute()) {
-        $mensaje = "El estado del usuario ha sido actualizado.";
+        $mensaje = "Estado actualizado correctamente.";
     } else {
         $error = "Error al cambiar el estado: " . $con->error;
     }
 }
 
-// --- ELIMINAR USUARIO ---
+// --- ELIMINAR USUARIO FORZADO (IGNORANDO FOREIGN KEYS) ---
 if (isset($_GET['accion']) && $_GET['accion'] === 'eliminar' && isset($_GET['id'])) {
-    $id_target = $_GET['id'];
-    $stmt = $con->prepare("DELETE FROM usuarios WHERE id_usuario = ?");
-    $stmt->bind_param("i", $id_target);
-    if ($stmt->execute()) {
-        $mensaje = "Usuario eliminado correctamente.";
-    } else {
-        $error = "No se puede eliminar el usuario porque tiene registros asociados.";
+    $id_target = intval($_GET['id']);
+    
+    try {
+        $con->query("SET FOREIGN_KEY_CHECKS = 0;");
+        $stmt = $con->prepare("DELETE FROM usuarios WHERE id_usuario = ?");
+        $stmt->bind_param("i", $id_target);
+        $stmt->execute();
+        $con->query("SET FOREIGN_KEY_CHECKS = 1;");
+
+        $mensaje = "El usuario se ha eliminado.";
+    } catch (Exception $e) {
+        $con->query("SET FOREIGN_KEY_CHECKS = 1;");
+        $error = "Error al intentar eliminar el usuario: " . $e->getMessage();
     }
 }
 
-// Obtener usuario para editar si se solicita
-$usuarioEdit = null;
-if (isset($_GET['accion']) && $_GET['accion'] === 'pre_editar' && isset($_GET['id'])) {
-    $stmt = $con->prepare("SELECT * FROM usuarios WHERE id_usuario = ?");
-    $stmt->bind_param("i", $_GET['id']);
-    $stmt->execute();
-    $usuarioEdit = $stmt->get_result()->fetch_assoc();
-}
-
-// Obtener TODOS los usuarios registrados sin filtrar por rol
 $resultado_usuarios = $con->query("SELECT * FROM usuarios ORDER BY id_usuario DESC");
 ?>
 
@@ -122,7 +142,6 @@ $resultado_usuarios = $con->query("SELECT * FROM usuarios ORDER BY id_usuario DE
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Gestión de Usuarios - Café control</title>
     <!-- Bootstrap CSS, FontAwesome & Google Fonts (Inter) -->
-     
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -147,7 +166,6 @@ $resultado_usuarios = $con->query("SELECT * FROM usuarios ORDER BY id_usuario DE
             -webkit-font-smoothing: antialiased;
         }
 
-        /* --- NAV SUPERIOR --- */
         .top-navbar {
             background-color: var(--bar-bg);
             color: #ffffff;
@@ -179,10 +197,6 @@ $resultado_usuarios = $con->query("SELECT * FROM usuarios ORDER BY id_usuario DE
             justify-content: center;
             overflow: hidden;
             border: 2px solid #8b5a2b;
-        }
-
-        .logo-circle-nav i {
-            font-size: 1.2rem;
         }
 
         .brand-name {
@@ -271,7 +285,6 @@ $resultado_usuarios = $con->query("SELECT * FROM usuarios ORDER BY id_usuario DE
             border: 2px solid #ffffff;
         }
 
-        /* --- LAYOUT Y MENÚ LATERAL --- */
         .layout-wrapper {
             display: flex;
             margin-top: 70px;
@@ -323,7 +336,6 @@ $resultado_usuarios = $con->query("SELECT * FROM usuarios ORDER BY id_usuario DE
             text-align: center;
         }
 
-        /* --- CONTENIDO PRINCIPAL --- */
         .main-content {
             flex: 1;
             padding: 30px;
@@ -371,7 +383,6 @@ $resultado_usuarios = $con->query("SELECT * FROM usuarios ORDER BY id_usuario DE
             letter-spacing: 0.01em;
         }
 
-        /* Tablas */
         .table {
             font-size: 0.92rem;
             border-radius: 10px;
@@ -385,7 +396,6 @@ $resultado_usuarios = $con->query("SELECT * FROM usuarios ORDER BY id_usuario DE
             padding: 12px 14px;
             color: #524338;
         }
-    
 
         .table td {
             padding: 12px 14px;
@@ -407,18 +417,18 @@ $resultado_usuarios = $con->query("SELECT * FROM usuarios ORDER BY id_usuario DE
         }
     
         .app-footer {
-      text-align: center;
-      padding: 24px;
-      font-size: 15px;
-      font-weight: 600;
-      color: var(--text-muted);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 8px;
-      background-color: var(--bg-main);
-      border-top: 1px solid var(--border-color);
-    }
+            text-align: center;
+            padding: 24px;
+            font-size: 15px;
+            font-weight: 600;
+            color: #524338;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            background-color: #f6f3ee;
+            border-top: 1px solid #d5cbc1;
+        }
     </style>
 </head>
 <body>
@@ -428,9 +438,9 @@ $resultado_usuarios = $con->query("SELECT * FROM usuarios ORDER BY id_usuario DE
         <div class="d-flex align-items-center">
             <div class="brand-section">
                <div class="logo-circle-nav">
-    <img src="images/logo.jpeg" alt="Logo Café Control" style="width: 100%; height: 100%; object-fit: cover;">
-</div>
-                <h1 class="brand-name">Café control</h1>
+                   <img src="images/logo.jpeg" alt="Logo Café Control" style="width: 100%; height: 100%; object-fit: cover;">
+               </div>
+               <h1 class="brand-name">Café control</h1>
             </div>
             <button class="menu-toggle" id="menuToggle"><i class="fa-solid fa-bars"></i></button>
             <div class="welcome-text d-none d-md-block">
@@ -456,7 +466,7 @@ $resultado_usuarios = $con->query("SELECT * FROM usuarios ORDER BY id_usuario DE
                     <i class="fa-solid fa-chevron-down text-white small"></i>
                 </div>
                 <ul class="dropdown-menu dropdown-menu-end shadow border-0">
-                    <li><a class="dropdown-item" href="perfil.php"><i class="fa-regular fa-user me-2"></i> Mi Perfil</a></li>
+                    <li><a class="dropdown-item" href="panel_caficultor.php"><i class="fa-regular fa-user me-2"></i> Mi Perfil</a></li>
                     <li><hr class="dropdown-divider"></li>
                     <li><a class="dropdown-item fw-semibold" href="cerrar.php"><i class="fa-solid fa-arrow-right-from-bracket me-2"></i> Cerrar Sesión</a></li>
                 </ul>
@@ -475,20 +485,20 @@ $resultado_usuarios = $con->query("SELECT * FROM usuarios ORDER BY id_usuario DE
                     <a href="fincas.php"><i class="fa-solid fa-location-dot"></i> Fincas</a>
                 </li>
                 <li class="sidebar-item">
-                    <a href="recolecciones.php"><i class="fa-solid fa-box-archive"></i> Recolecciones</a>
+                    <a href="recolecciones_c.php"><i class="fa-solid fa-box-archive"></i> Recolecciones</a>
                 </li>
                 <li class="sidebar-item">
-                    <a href="trabajadores.php"><i class="fa-solid fa-user-group"></i> Trabajadores</a>
+                    <a href="recolectores_c.php"><i class="fa-solid fa-user-group"></i> Trabajadores</a>
                 </li>
                 <li class="sidebar-item">
-                    <a href="resumen.php"><i class="fa-solid fa-chart-simple"></i> Resumen General</a>
+                    <a href="resumen_c.php"><i class="fa-solid fa-chart-simple"></i> Resumen General</a>
                 </li>
                 <li class="sidebar-item">
                     <a href="precio.php"><i class="fa-solid fa-dollar-sign"></i> Precio del Kilo</a>
                 </li>
-                  <li class="sidebar-item">
-          <a href="asignar_m.php"><i class="fa-solid fa-user-gear" style="font-size: 18px;"></i> Mayordomo</a>
-        </li>
+                <li class="sidebar-item">
+                    <a href="asignar_m.php"><i class="fa-solid fa-user-gear" style="font-size: 18px;"></i> Mayordomo</a>
+                </li>
                 <li class="sidebar-item active">
                     <a href="gestionar_usuarios.php">
                         <i class="fa-solid fa-users-gear"></i>
@@ -533,30 +543,30 @@ $resultado_usuarios = $con->query("SELECT * FROM usuarios ORDER BY id_usuario DE
                         <div class="row">
                             <div class="col-md-3 mb-3">
                                 <label class="form-label">Documento</label>
-                                <input type="text" class="form-control" name="documento" value="<?= $usuarioEdit['documento'] ?? '' ?>" required>
+                                <input type="text" class="form-control" name="documento" value="<?= htmlspecialchars($usuarioEdit['documento'] ?? '') ?>" required>
                             </div>
                             <div class="col-md-3 mb-3">
                                 <label class="form-label">Nombres</label>
-                                <input type="text" class="form-control" name="nombres" value="<?= $usuarioEdit['nombres'] ?? '' ?>" required>
+                                <input type="text" class="form-control" name="nombres" value="<?= htmlspecialchars($usuarioEdit['nombres'] ?? '') ?>" required>
                             </div>
                             <div class="col-md-3 mb-3">
                                 <label class="form-label">Apellidos</label>
-                                <input type="text" class="form-control" name="apellidos" value="<?= $usuarioEdit['apellidos'] ?? '' ?>" required>
+                                <input type="text" class="form-control" name="apellidos" value="<?= htmlspecialchars($usuarioEdit['apellidos'] ?? '') ?>" required>
                             </div>
                             <div class="col-md-3 mb-3">
                                 <label class="form-label">Teléfono</label>
-                                <input type="text" class="form-control" name="telefono" value="<?= $usuarioEdit['telefono'] ?? '' ?>">
+                                <input type="text" class="form-control" name="telefono" value="<?= htmlspecialchars($usuarioEdit['telefono'] ?? '') ?>">
                             </div>
                         </div>
 
                         <div class="row">
                             <div class="col-md-4 mb-3">
                                 <label class="form-label">Correo electrónico</label>
-                                <input type="email" class="form-control" name="correo" value="<?= $usuarioEdit['correo'] ?? '' ?>">
+                                <input type="email" class="form-control" name="correo" value="<?= htmlspecialchars($usuarioEdit['correo'] ?? '') ?>">
                             </div>
                             <div class="col-md-4 mb-3">
                                 <label class="form-label">Nombre de usuario</label>
-                                <input type="text" class="form-control" name="usuario" value="<?= $usuarioEdit['usuario'] ?? '' ?>" required>
+                                <input type="text" class="form-control" name="usuario" value="<?= htmlspecialchars($usuarioEdit['usuario'] ?? '') ?>" required>
                             </div>
                             <div class="col-md-4 mb-3">
                                 <label class="form-label">Contraseña <span class="fw-normal text-muted"><?= $usuarioEdit ? '(Opcional)' : '' ?></span></label>
@@ -651,11 +661,10 @@ $resultado_usuarios = $con->query("SELECT * FROM usuarios ORDER BY id_usuario DE
         </main>
     </div>
 
-
-  <footer class="app-footer">
-    <i data-lucide="coffee" size="18"></i>
-    <span><strong>Café Control</strong> © 2026 Developers: Gloria Tatiana Sanchez & Tatiana Silva Penagos</span>
-  </footer>
+    <footer class="app-footer">
+        <i data-lucide="coffee" size="18"></i>
+        <span><strong>Café Control</strong> © 2026 Developers: Gloria Tatiana Sanchez & Tatiana Silva Penagos</span>
+    </footer>
 
     <!-- Script de Bootstrap -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>

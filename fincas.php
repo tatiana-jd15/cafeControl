@@ -61,7 +61,7 @@ $fincas_result = $stmt_fincas->get_result();
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Café control</title>
   
-  <!-- Fuente Google: Plus Jakarta Sans (Pesos seleccionados para máxima legibilidad) -->
+  <!-- Fuente Google: Plus Jakarta Sans -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap" rel="stylesheet">
@@ -103,6 +103,13 @@ $fincas_result = $stmt_fincas->get_result();
       line-height: 1.5;
     }
 
+    /* Normalización general de imágenes */
+    img {
+      max-width: 100%;
+      height: auto;
+      display: block;
+    }
+
     /* Header Superior */
     .top-header {
       background-color: var(--primary-brown);
@@ -129,7 +136,16 @@ $fincas_result = $stmt_fincas->get_result();
       display: flex;
       align-items: center;
       justify-content: center;
-      color: var(--primary-brown);
+      overflow: hidden;
+      flex-shrink: 0;
+    }
+
+    .brand-logo img,
+    .brand-logo .app-logo {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      border-radius: 50%;
     }
 
     .brand-text h1 {
@@ -192,22 +208,44 @@ $fincas_result = $stmt_fincas->get_result();
       border: 2px solid var(--primary-brown);
     }
 
-    .user-profile {
+    a.user-profile,
+    a.user-profile:visited,
+    a.user-profile:hover,
+    a.user-profile:active {
       display: flex;
       align-items: center;
       gap: 10px;
       cursor: pointer;
+      color: inherit;
+      text-decoration: none;
     }
 
     .avatar {
-      width: 42px;
-      height: 42px;
+      width: 48px;
+      height: 48px;
       background-color: #fff;
       color: var(--primary-brown);
       border-radius: 50%;
       display: flex;
       align-items: center;
       justify-content: center;
+      overflow: hidden;
+      flex-shrink: 0;
+      border: 1px solid var(--border-color);
+    }
+
+    .avatar img,
+    .avatar .header-avatar {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      border-radius: 50%;
+      display: block;
+    }
+
+    .avatar svg {
+      stroke: var(--primary-brown) !important;
+      color: var(--primary-brown) !important;
     }
 
     /* Layout Principal */
@@ -483,135 +521,61 @@ $fincas_result = $stmt_fincas->get_result();
         justify-content: center;
       }
     }
-  
-
-    /* Perfil del usuario en el encabezado */
-    .user-profile {
-      text-decoration: none;
-    }
-
-    .user-profile:hover {
-      opacity: 0.96;
-    }
-
-    .header-avatar {
-      width: 42px;
-      height: 42px;
-      object-fit: cover;
-      border-radius: 50%;
-      display: block;
-    }
-
-    .perfil-header-text {
-      display: flex;
-      flex-direction: column;
-      line-height: 1.15;
-      text-align: left;
-    }
-
-    .perfil-header-text strong {
-      color: #fff;
-      font-size: 0.84rem;
-      font-weight: 800;
-    }
-
-    .perfil-header-text small {
-      color: rgba(255,255,255,0.80);
-      font-size: 0.70rem;
-      font-weight: 600;
-      margin-top: 3px;
-    }
-
   </style>
 </head>
 <body>
 
   <!-- Encabezado Principal -->
- <header class="top-header">
-  <style>
-    /* Estilos para el contenedor e imagen del logo */
-    .brand-logo {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      width: 36px;
-      height: 36px;
-      border-radius: 50%;
-      overflow: hidden;
-    }
-
-    .brand-logo .app-logo {
-      width: 100%;
-      height: 100%;
-      object-fit: contain;
-    }
-
-    /* Solución para que el enlace del perfil no se vea morado o azul */
-    a.user-profile,
-    a.user-profile:visited,
-    a.user-profile:hover,
-    a.user-profile:active {
-      color: inherit;
-      text-decoration: none;
-    }
-
-    /* Asegura que el icono y texto dentro del perfil se mantengan blancos */
-    a.user-profile,
-    a.user-profile * {
-      color: #ffffff;
-      stroke: #ffffff;
-    }
-  </style>
-
-  <div class="brand">
-    <div class="brand-logo">
-      <img 
-        src="images/logo.jpeg" 
-        alt="Café Control Logo" 
-        class="app-logo"
-      >
-    </div>
-    <div class="brand-text">
-      <h1>Café control</h1>
-    </div>
-  </div>
-
-  <div class="header-center">
-    <button class="menu-toggle" type="button" aria-label="Abrir menú">
-      <i data-lucide="menu" size="24"></i>
-    </button>
-    <div class="user-welcome">
-      <h2>Bienvenido, <?php echo htmlspecialchars($nombre_caficultor); ?></h2>
-      <p>Administra tus fincas y consulta su información</p>
-    </div>
-  </div>
-
-  <div class="header-actions">
-    <button class="icon-btn" type="button" aria-label="Notificaciones">
-      <i data-lucide="bell" size="22"></i>
-      <span class="badge-dot"></span>
-    </button>
-    <a
-      href="panel_caficultor.php"
-      class="user-profile"
-      aria-label="Ver perfil"
-    >
-      <div class="avatar">
-        <?php if (!empty($foto_perfil)) { ?>
-          <img
-            src="<?php echo htmlspecialchars($foto_perfil); ?>"
-            alt="Foto de perfil"
-            class="header-avatar"
-          >
-        <?php } else { ?>
-          <i data-lucide="user" size="22"></i>
-        <?php } ?>
+  <header class="top-header">
+    <div class="brand">
+      <div class="brand-logo">
+        <img 
+          src="images/logo.jpeg" 
+          alt="Café Control Logo" 
+          class="app-logo"
+        >
       </div>
+      <div class="brand-text">
+        <h1>Café control</h1>
+      </div>
+    </div>
 
-      <i data-lucide="chevron-down" size="18"></i>
-    </a>
-  </div>
-</header>
+    <div class="header-center">
+      <button class="menu-toggle" type="button" aria-label="Abrir menú">
+        <i data-lucide="menu" size="24"></i>
+      </button>
+      <div class="user-welcome">
+        <h2>Bienvenido, <?php echo htmlspecialchars($nombre_caficultor); ?></h2>
+        <p>Administra tus fincas y consulta su información</p>
+      </div>
+    </div>
+
+    <div class="header-actions">
+      <button class="icon-btn" type="button" aria-label="Notificaciones">
+        <i data-lucide="bell" size="22"></i>
+        <span class="badge-dot"></span>
+      </button>
+      <a
+        href="panel_caficultor.php"
+        class="user-profile"
+        aria-label="Ver perfil"
+      >
+        <div class="avatar">
+          <?php if (!empty($foto_perfil)) { ?>
+            <img
+              src="<?php echo htmlspecialchars($foto_perfil); ?>"
+              alt="Foto de perfil"
+              class="header-avatar"
+            >
+          <?php } else { ?>
+            <i data-lucide="user" size="22"></i>
+          <?php } ?>
+        </div>
+
+        <i data-lucide="chevron-down" size="18"></i>
+      </a>
+    </div>
+  </header>
 
   <div class="app-layout">
     <!-- Menú Lateral -->
@@ -641,7 +605,7 @@ $fincas_result = $stmt_fincas->get_result();
         <li class="nav-item">
           <a href="gestionar_usuarios.php">
             <i class="fa-solid fa-users-gear" style="font-size:18px;"></i>
-               Gestionar Usuarios
+            Gestionar Usuarios
          </a>
        </li>
         <li class="nav-item">

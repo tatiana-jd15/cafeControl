@@ -393,6 +393,12 @@ body {
     line-height:1.6;
 }
 
+img {
+    max-width: 100%;
+    height: auto;
+    display: block;
+}
+
 .top-header {
 
     background-color:var(--primary-brown);
@@ -516,12 +522,16 @@ body {
     border-radius:50%;
 }
 
-.user-profile {
-
+a.user-profile,
+a.user-profile:visited,
+a.user-profile:hover,
+a.user-profile:active {
     display:flex;
     align-items:center;
-
     gap:12px;
+    cursor: pointer;
+    color: inherit;
+    text-decoration: none;
 }
 
 .avatar {
@@ -540,6 +550,7 @@ body {
 
     overflow:hidden;
     flex-shrink:0;
+    border: 1px solid var(--border-color);
 }
 
 .avatar img,
@@ -548,6 +559,12 @@ body {
     height:100%;
     object-fit:cover;
     border-radius:50%;
+    display: block;
+}
+
+.avatar svg {
+    stroke: var(--primary-brown) !important;
+    color: var(--primary-brown) !important;
 }
 
 .app-layout {
@@ -962,9 +979,9 @@ body {
     border-top:1px solid var(--border-color);
 }
 
-/* Fuerza a los íconos de la cabecera a ser blancos */
-.header-actions i,
-.header-actions svg {
+/* Fuerza a los íconos de la cabecera a ser blancos (excepto la foto de perfil) */
+.header-actions .icon-btn i,
+.header-actions .icon-btn svg {
     color: #fff !important;
     stroke: #fff !important;
 }
@@ -1043,7 +1060,7 @@ body {
         <i data-lucide="chevron-down" size="18"></i>
       </a>
     </div>
-  </header>
+ </header>
 
 
 <div class="app-layout">
@@ -1106,7 +1123,7 @@ Mayordomo
                         <i class="fa-solid fa-users-gear" style="font-size:18px;"></i>
                         Gestionar Usuarios
                     </a>
-             </li>
+               </li>
 
 <li class="nav-item">
 <a href="cerrar.php">

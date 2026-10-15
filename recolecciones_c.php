@@ -10,6 +10,7 @@ if (!isset($_SESSION['id_usuario'])) {
 $id_usuario_sesion = $_SESSION['id_usuario'];
 
 // Obtener datos del usuario logueado
+// Siguraduem a na-fetch a husto ti perfiles_usuario
 $sql_user = "
     SELECT
         u.nombres,
@@ -204,32 +205,38 @@ if (isset($_GET['action']) && $_GET['action'] === 'guardar_recolecciones') {
       text-decoration: none;
       color: #fff;
     }
+/* Estilos correctos y unificados para el avatar de usuario */
+    .user-profile {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      cursor: pointer;
+      text-decoration: none;
+      color: #fff;
+    }
 
     .avatar {
-      width: 42px;
-      height: 42px;
+      width: 48px;
+      height: 48px;
       background-color: #fff;
       color: var(--primary-brown);
       border-radius: 50%;
       display: flex;
       align-items: center;
       justify-content: center;
-      overflow: hidden;
-      border: 2px solid rgba(255,255,255,0.7);
+      overflow: hidden; /* <-- OBLIGATORIO para recortar la foto al círculo */
+      flex-shrink: 0;
+      border: 1px solid rgba(255, 255, 255, 0.7);
     }
 
-    .header-avatar {
+    .avatar img,
+    .avatar .header-avatar {
       width: 100%;
       height: 100%;
-      object-fit: cover;
+      object-fit: cover; /* <-- OBLIGATORIO para que la foto no se estire ni deforme */
+      border-radius: 50%;
       display: block;
     }
-
-    .profile-arrow {
-      width: 19px;
-      height: 19px;
-    }
-
     /* Layout & Sidebar */
     .app-layout { display: flex; flex: 1; }
     .sidebar { width: 270px; background-color: var(--bg-sidebar); padding: 24px 18px; display: flex; flex-direction: column; gap: 20px; flex-shrink: 0; border-right: 1px solid var(--border-color); }
@@ -384,11 +391,7 @@ if (isset($_GET['action']) && $_GET['action'] === 'guardar_recolecciones') {
     >
       <div class="avatar">
         <?php if (!empty($foto_perfil)) { ?>
-          <img
-            src="<?php echo htmlspecialchars($foto_perfil); ?>"
-            alt="Foto de perfil"
-            class="header-avatar"
-          >
+          <img src="<?php echo htmlspecialchars($foto_perfil); ?>" alt="Foto de perfil" class="header-avatar">
         <?php } else { ?>
           <i data-lucide="user" size="22"></i>
         <?php } ?>
