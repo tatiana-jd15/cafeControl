@@ -14,7 +14,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['registro'])) {
     $correo = htmlspecialchars(trim($_POST['correo']));
     $finca = htmlspecialchars(trim($_POST['finca']));
     $usuario = htmlspecialchars(trim($_POST['usuario'])); 
-    $rol = "caficultor"; // Rol predeterminado según ENUM
+    $rol = "recolector"; // Rol predeterminado según ENUM
     $estado_usuario = "activo"; // Estado por defecto
     $clave_plana = $_POST['clave'];
     $clave_confirmar = $_POST['confirmar_clave'];
